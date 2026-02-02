@@ -1,11 +1,10 @@
 from typing import Callable, Iterable, Literal
-
 import torch
 import torch.nn as nn
 import lightning as L
 import torch.nn.functional as F
-from lightning_fabric.loggers import TensorBoardLogger
-from pytorch_lightning.utilities.types import OptimizerLRScheduler
+from lightning.fabric.loggers import TensorBoardLogger
+from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from segmentation_models_pytorch import Unet
 from torchmetrics.functional import structural_similarity_index_measure, peak_signal_noise_ratio, mean_squared_error
 

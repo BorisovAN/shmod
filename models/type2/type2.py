@@ -13,7 +13,7 @@ def _ssim_full_range(a, b):
     return structural_similarity_index_measure(a, b)
 
 
-class Type2Mode(BaseModel):
+class Type2Model(BaseModel):
 
     def __init__(self, sar_channels: int, opt_channels: int, out_channels: int, sar_use_log_scale: bool = True,
                  optimizer: OptimizerFactory | None = None,

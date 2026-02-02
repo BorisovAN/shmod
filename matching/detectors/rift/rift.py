@@ -1,3 +1,33 @@
+# Copyright (c) 2018, Jiayuan Li
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in
+#       the documentation and/or other materials provided with the distribution
+#     * Neither the name of the Università degli studi dell'Aquila nor the names
+#       of its contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Reference: https://github.com/LJY-RS/RIFT-multimodal-image-matching
+
 import numpy as np
 import torch
 import cv2
@@ -15,14 +45,6 @@ class RIFT(Detector):
         self.patch_size = patch_size
         self.max_points = max_points
         self.matcher =cv2.BFMatcher(crossCheck=True)
-
-    #
-    # def detect(self, im1: np.ndarray, im2: np.ndarray):
-    #     m1_points, eo1, m2_points, eo2 = detect(im1, im2, self.s, self.o,
-    #                                             max_points=self.max_points)
-    #     return m1_points, eo1, m2_points, eo2
-    #
-    # def describe(self):
 
     def __call__(self, im1: torch.Tensor, im2:torch.Tensor):
 
@@ -59,11 +81,6 @@ class RIFT(Detector):
         _, i = np.unique(indices[:, 1], return_index=True)
         indices = indices[i, :]
 
-        # matched_indices1 = set(indices[:, 0])
-        # matched_indices2 = set(indices[:, 1])
-
-        # unmatched_mask1 = np.array( [(i not in matched_indices1) for i in range(len(pts.coords1))])
-        # unmatched_mask2 = np.array([(i not in matched_indices2) for i in range(len(pts.coords2))])
         im1_points = im1_points[:, ::-1].copy()
         im2_points = im2_points[:, ::-1].copy()
         matchedPoints1 = im1_points[indices[:, 0]]

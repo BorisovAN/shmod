@@ -2,23 +2,28 @@ import sys
 from pathlib import Path
 import numpy as np
 from data.image_folder import ImageFolder
+from models.log import Log10
 from models.percentile_limiter import PercentileLimiter
 from models.type1 import Type1Model
 import torch
 import cv2
 torch.set_float32_matmul_precision('high')
+import argparse
 
 
-CKPT_PATH = Path(sys.argv[1])
-
-DATA_ROOT = Path(sys.argv[2])
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('CKPT_PATH', type=Path)
+    parser.add_argument('DATA_ROOT', type=Path)
+    parser.add_argument('--limit-range-for-net-output', action='store_true', help='Limit the output of net (required to mitigate the low dynamic range for the type-2 network)')
+    return parser.parse_args()
 
 limiter = PercentileLimiter(0.5, 99.5).cuda()
-
+log  = Log10().cuda()
 
 def convert_to_rgb(img: torch.Tensor, *, limit_range: bool = False, use_log_scale: bool = False):
     if use_log_scale:
-        img = torch.log10(img + 0.001)
+        img = log(img)
 
     if limit_range:
         img = limiter(img)
@@ -31,6 +36,7 @@ def convert_to_rgb(img: torch.Tensor, *, limit_range: bool = False, use_log_scal
     return img
 
 
+# noinspection PyDefaultArgument
 def show_image(img: np.ndarray, window_name: str, *, _created_windows=set()):
     if window_name not in _created_windows:
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
@@ -39,14 +45,16 @@ def show_image(img: np.ndarray, window_name: str, *, _created_windows=set()):
 
 
 def main():
+    args = parse_args()
+
     try:
-        model = Type1Model.load_from_checkpoint(CKPT_PATH, strict=False)
+        model = Type1Model.load_from_checkpoint(args.CKPT_PATH, strict=False)
     except Exception as E:
-        model = torch.load(CKPT_PATH, weights_only=False).cuda()
+        model = torch.load(args.CKPT_PATH, weights_only=False).cuda()
 
     model.eval()
 
-    dataset = ImageFolder(DATA_ROOT, ['s1', 's2'])
+    dataset = ImageFolder(args.DATA_ROOT, ['s1', 's2'])
 
     assert dataset is not None
 
@@ -63,8 +71,8 @@ def main():
 
             s1 = convert_to_rgb(s1[:, (0, 1, 0), ...], limit_range=True, use_log_scale=True)
             s2 = convert_to_rgb(s2[:, :3, ...], limit_range=True)
-            r1 = convert_to_rgb(r1)
-            r2 = convert_to_rgb(r2)
+            r1 = convert_to_rgb(r1, limit_range=args.limit_range_for_net_output)
+            r2 = convert_to_rgb(r2, limit_range=args.limit_range_for_net_output)
 
             show_image(s1, 's1')
             show_image(s2, 's2')

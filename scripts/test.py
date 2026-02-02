@@ -15,7 +15,7 @@ DATA_ROOT = Path(sys.argv[2])
 
 def main():
     try:
-        model = Type1Model.load_from_checkpoint(CKPT_PATH, strict=False)
+        model = Type1Model.load_from_checkpoint(CKPT_PATH, strict=False) # Type2Model is weight-compatible with Type1Model
     except:
         model = torch.load(CKPT_PATH, weights_only=False).cuda()
     data = ImageFoldersDataModule(DATA_ROOT, ['s1', 's2'], 1, 32)
@@ -25,7 +25,7 @@ def main():
     trainer = L.Trainer(
         max_epochs=0,
         log_every_n_steps=100,
-        logger=TensorBoardLogger('../results/logs'),
+        logger=TensorBoardLogger(out_path/'logs'),
     )
 
     trainer.test(model, datamodule=data)

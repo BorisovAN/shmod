@@ -15,6 +15,8 @@ class DetectedPoints:
         assert len(self.points_a) == len(self.points_b)
 
     def avg_points_error(self):
+        if len(self.points_a) == 0:
+            return np.nan
         return np.linalg.norm(self.points_a - self.points_b, axis=1).mean()
 
     def get_inliers_mask(self, delta) -> np.ndarray[bool]:

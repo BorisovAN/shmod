@@ -1,0 +1,12 @@
+lightning
+segmentation-models-pytorch
+jsonargparse[signatures]
+tifffile
+opencv-contrib-python
+scipy
+torchvision
+tensorboard
+kornia # for DeDoDe
+einops # for RoMa
+pillow
+joblib # for RIFT2

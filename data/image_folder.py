@@ -15,9 +15,9 @@ class ImageFolder(torch.utils.data.Dataset):
           id is used to match images of different modalities (i.e. defines a territory);
           extension is a common image extension.
 
-    Id is essentially a part of a filename that is left after trimming both prefix and extension.
-    There is no limitations on prefix or id content.
 
+    There is no requirements for a format of prefix and id.
+    Id is essentially a part of the filename that is left after trimming both prefix and extension.
 
     """
     TIFF_EXTENSIONS = ['.tif', '.tiff']
@@ -61,7 +61,7 @@ class ImageFolder(torch.utils.data.Dataset):
 
         :param root: path to the folder.
         :param prefixes: List of prefixes to load
-        :param stored_as_channels_first:  indicate that images are already stored in CHW-format and do not need a rearrangement of dimensions
+        :param stored_as_channels_first:  if True, indicates that images are already stored in CHW-format and do not need a rearrangement of dimensions
         """
 
         self.stored_as_channels_first = stored_as_channels_first
@@ -118,23 +118,6 @@ class ImageFolder(torch.utils.data.Dataset):
             result.append(i)
         return tuple(result)
 
-
-if __name__ == "__main__":
-
-    ds =ImageFolder(Path('/mnt/hot_data/datasets/multisen_ge/test'), ["s1", "s2"])
-
-    #exit(0)
-
-    out_path = Path('/mnt/hot_data/datasets/multisen_ge/test_remapped')
-    out_path.mkdir()
-    for i in range(len(ds)):
-        s1_path, s2_path = ds.image_sets[i]
-
-        s1_new_path = out_path / f's1_{i}.tif'
-        s2_new_path = out_path / f's2_{i}.tif'
-
-        s1_new_path.hardlink_to(s1_path)
-        s2_new_path.hardlink_to(s2_path)
 
 
 

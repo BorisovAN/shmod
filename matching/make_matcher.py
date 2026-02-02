@@ -20,3 +20,4 @@ def make_matcher(matcher_name: MatcherName):
         return SIFT(True, 4096)
     if matcher_name == 'rift':
         return RIFT2(npt=4096, lowes_ratio=0.95)
+    raise ValueError(f'Unknown matcher: {matcher_name}')

@@ -1,3 +1,5 @@
+# Reference: https://github.com/canyagmur/RIFT2-multimodal-matching-rotation-python
+
 import cv2
 import numpy as np
 import torch
@@ -7,6 +9,7 @@ from matching.detector import DetectedPoints
 from matching.detectors.rift2.phase_congruency.phasecong import phasecong
 from joblib import Parallel, delayed
 from matching.detectors.rift2.matcher_functions import match_keypoints_nn
+
 
 
 class RIFT2:

@@ -1,0 +1,1 @@
+from .type2 import Type2Model

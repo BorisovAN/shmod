@@ -1,7 +1,6 @@
 import torch
 import torch.utils.data as D
 import lightning as L
-from lightning.pytorch.utilities.types import EVAL_DATALOADERS
 
 from data.image_folder import ImageFolder, Path
 

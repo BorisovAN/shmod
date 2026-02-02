@@ -10,18 +10,30 @@ from models.type1 import Type1Model
 from tqdm import tqdm
 from data.image_folders_data_module import ImageFoldersDataModule
 
+import argparse
 MatcherName = Literal['roma', 'sift', 'dedode', 'rift', 'roma_custom']
-CKPT_PATH = Path(sys.argv[1])
-DATA_ROOT = Path(sys.argv[2])
 
-MATCHER: MatcherName = 'sift'
-OUT_FOLDER: Path | None = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--matcher', choices=['roma', 'sift', 'dedode', 'rift', 'roma_custom'], default='sift')
+    parser.add_argument('CKPT_PATH', type=Path)
+    parser.add_argument('DATA_ROOT', type=Path)
+    parser.add_argument('OUT_FOLDER', type=Path, optional=True)
+
+    return parser.parse_args()
 
 
-def get_out_folder():
-    if OUT_FOLDER is not None:
-        return OUT_FOLDER
-    return CKPT_PATH.parent / 'keypoints' / CKPT_PATH.stem
+# CKPT_PATH = Path(sys.argv[1])
+# DATA_ROOT = Path(sys.argv[2])
+#
+# MATCHER: MatcherName = 'sift'
+# OUT_FOLDER: Path | None = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+
+
+def get_out_folder(args):
+    if args.OUT_FOLDER is not None:
+        return args.OUT_FOLDER
+    return args.CKPT_PATH.parent / args.matcher / 'keypoints'
 
 
 def save_keypoints(f: Path, points: DetectedPoints):
@@ -35,17 +47,19 @@ def save_keypoints(f: Path, points: DetectedPoints):
 
 
 def main():
-    datamodule = ImageFoldersDataModule(DATA_ROOT, ['s1', 's2'], 1, 1)
+    args = parse_args()
+
+    datamodule = ImageFoldersDataModule(args.DATA_ROOT, ['s1', 's2'], 1, 1)
 
     try:
-        model = Type1Model.load_from_checkpoint(CKPT_PATH, strict=False)
+        model = Type1Model.load_from_checkpoint(args.CKPT_PATH, strict=False)
     except:
-        model = torch.load(CKPT_PATH, weights_only=False).cuda()
+        model = torch.load(args.CKPT_PATH, weights_only=False).cuda()
 
     loader = datamodule.test_dataloader()
-    matcher = make_matcher(MATCHER)
+    matcher = make_matcher(args.matcher)
 
-    out_folder = get_out_folder()
+    out_folder = get_out_folder(args)
 
     # noinspection PyTypeChecker
     pbar = tqdm(total=len(loader.dataset))
@@ -57,4 +71,6 @@ def main():
             keypoints = matcher(s1_features, s2_features)
             if keypoints is not None:
                 save_keypoints(out_folder / f'{i}.npy', keypoints)
+            else:
+                (out_folder / f'{i}.npy').touch() #
             pbar.update(1)
