@@ -4,7 +4,7 @@ from models.type2 import Type2Model
 
 torch.manual_seed(0)
 import torch.optim
-from models.type1 import Type1Model
+from models.type1 import Type1Model, Type1HRModel, Type1RGBModel
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import *
@@ -12,6 +12,10 @@ from pathlib import Path
 from data.image_folders_data_module import ImageFoldersDataModule
 import sys
 import argparse
+
+torch.set_float32_matmul_precision('high')
+torch.backends.cudnn.allow_tf32=True
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -22,7 +26,7 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=128)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--num-workers', type=int, default=8)
-    parser.add_argument('--model-type', choices=['type1', 'type2'], default='type1')
+    parser.add_argument('--model-type', choices=['type1','type1_hr','type1_rgb', 'type2'], default='type1_hr')
     return parser.parse_args()
 #
 # EXP_NAME = sys.argv[1]
@@ -41,11 +45,11 @@ def main():
     data = ImageFoldersDataModule(args.data_root, ['s1', 's2'], args.batch_size, args.batch_size, num_workers=args.num_workers)
 
     def get_optimizer(params):
-        return torch.optim.NAdam(params, args.base_lr, weight_decay=1e-2)
+        return torch.optim.NAdam(params, args.lr, weight_decay=1e-2)
 
     def get_scheduler(optimizer):
         return {
-            "scheduler": torch.optim.lr_scheduler.OneCycleLR(optimizer, args.base_lr,
+            "scheduler": torch.optim.lr_scheduler.OneCycleLR(optimizer, args.lr,
                                                              total_steps=args.epochs * len(data.train_dataloader()),
                                                              div_factor=1e4),
             'interval': 'step',  # 'epoch'
@@ -55,26 +59,29 @@ def main():
     def get_model():
         if args.model_type == 'type1':
             return Type1Model(2, 10, 3, True, optimizer=get_optimizer, lr_scheduler=get_scheduler)
+        elif args.model_type == 'type1_hr':
+            return Type1HRModel(2, 10, 3, True, optimizer=get_optimizer, lr_scheduler=get_scheduler)
+        elif args.model_type == 'type1_rgb':
+            return Type1RGBModel(2, 10, 3, True, optimizer=get_optimizer, lr_scheduler=get_scheduler)
         return Type2Model(2, 10, 3, True, optimizer=get_optimizer, lr_scheduler=get_scheduler)
 
     model = get_model()
 
 
     out_path = args.out_path / args.exp_name
-    log_path = args.out_path / 'logs'
+
 
     trainer = Trainer(
+        default_root_dir=out_path,
         max_epochs=args.epochs,
         log_every_n_steps=100,
-        logger=TensorBoardLogger(log_path),
+        logger=TensorBoardLogger(out_path, name=''),
         callbacks=[
-            ModelCheckpoint(out_path, "best_{epoch}", monitor='val/loss'),
-            ModelCheckpoint(out_path, filename='last'),
+            ModelCheckpoint(filename="best_{epoch}", monitor='val/loss'),
+            ModelCheckpoint( filename='last'),
             EarlyStopping('val/loss', patience=8),
             LearningRateMonitor('step')
         ],
-        # reload_dataloaders_every_n_epochs=1,
-        # limit_train_batches=1024
     )
 
     trainer.fit(model, datamodule=data)

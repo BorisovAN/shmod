@@ -99,7 +99,7 @@ class BaseModel(L.LightningModule):
         if self.hparams['sar_use_log_scale']:
             image = torch.log10(image+0.001)
         if image.ndim == 3 and image.shape[0] > 1:
-            image = image[(0, 1, 0)]
+            image = image[(0, 1, 0), ...]
         image = self.limiter(image)
         return image
 
@@ -121,7 +121,7 @@ class BaseModel(L.LightningModule):
 
         for name in images:
             image = images[name]
-            assert image.shape in (2, 3)
+            assert image.ndim in (2, 3)
 
             tb_logger.add_image(f'{prefix}/{name}', images[name], step)
 
