@@ -8,16 +8,18 @@ from .roma import Roma, CustomRoma
 
 MatcherName = Literal['roma', 'sift', 'dedode', 'rift', 'roma_custom']
 
-def make_matcher(matcher_name: MatcherName):
+def make_matcher(matcher_name: MatcherName, max_kpts=4096):
     if matcher_name == 'roma':
-        return Roma(max_kpts=4096, coarse_res=112 * 4, upsample_res=112 * 4, use_center_crop=False)
+        return Roma(max_kpts=max_kpts, coarse_res=112 * 4, upsample_res=112 * 4, use_center_crop=False)
     if matcher_name == 'roma_custom':
-        return CustomRoma(Path('../checkpoints/roma.pth'), # alter if needed
-                          coarse_res=224, upsample_res=224, use_center_crop=False)
+        return CustomRoma(
+                            Path(__file__).parent/'../checkpoints/roma.pth'  # alter if needed
+                          , max_kpts=max_kpts
+                          , coarse_res=224, upsample_res=224, use_center_crop=False)
     if matcher_name == 'dedode':
-        return DeDoDe(num_features=4096, matcher='nn')
+        return DeDoDe(num_features=max_kpts, matcher='nn')
     if matcher_name == 'sift':
-        return SIFT(True, 4096)
+        return SIFT(True, max_kpts)
     if matcher_name == 'rift':
-        return RIFT2(npt=4096, lowes_ratio=0.95)
+        return RIFT2(npt=max_kpts, lowes_ratio=0.95)
     raise ValueError(f'Unknown matcher: {matcher_name}')

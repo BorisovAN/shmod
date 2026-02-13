@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Union, Literal
+from typing import Union
 
+import numpy as np
 import torch
 
 from matching.detector import DetectedPoints
 from matching.roma.models.matcher import RegressionMatcher
-from matching.roma.models.model_zoo import roma_outdoor, tiny_roma_v1_outdoor
-import numpy as np
+from matching.roma.models.model_zoo import roma_outdoor
 
 
 class _RomaBase:
@@ -78,7 +78,7 @@ class Roma(_RomaBase):
                  amp_dtype: torch.dtype = torch.float16, use_center_crop: bool = True):
 
         roma_model = roma_outdoor(torch.device('cuda'), coarse_res=coarse_res, upsample_res=upsample_res,
-                                  amp_dtype=amp_dtype)
+                                  amp_dtype=amp_dtype).eval()
         super().__init__(model=roma_model, target_size=coarse_res, max_kpts=max_kpts, normalize=normalize,
                          use_center_crop=use_center_crop)
 
@@ -140,6 +140,6 @@ class CustomRoma(_RomaBase):
                  amp_dtype: torch.dtype = torch.bfloat16, use_center_crop: bool = True):
         weights = torch.load(weights_path)['model']
         roma_model = roma_outdoor(device=torch.device('cuda'), weights=weights, coarse_res=coarse_res,
-                                  upsample_res=upsample_res, amp_dtype=amp_dtype)
+                                  upsample_res=upsample_res, amp_dtype=amp_dtype).eval()
         super().__init__(model=roma_model, target_size=coarse_res, max_kpts=max_kpts, normalize=normalize,
                          use_center_crop=use_center_crop)

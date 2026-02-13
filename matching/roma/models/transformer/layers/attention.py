@@ -13,17 +13,18 @@ import logging
 from torch import Tensor
 from torch import nn
 
+#from matching.roma.models.transformer.layers.block import XFORMERS_AVAILABLE
 
 logger = logging.getLogger("dinov2")
+XFORMERS_AVAILABLE = None
+if XFORMERS_AVAILABLE is None:
+    try:
+        from xformers.ops import memory_efficient_attention, unbind, fmha
 
-
-try:
-    from xformers.ops import memory_efficient_attention, unbind, fmha
-
-    XFORMERS_AVAILABLE = True
-except ImportError:
-    logger.warning("xFormers not available")
-    XFORMERS_AVAILABLE = False
+        XFORMERS_AVAILABLE = True
+    except ImportError:
+        #logger.warning("xFormers not available")
+        XFORMERS_AVAILABLE = False
 
 
 class Attention(nn.Module):

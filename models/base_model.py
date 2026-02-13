@@ -22,6 +22,13 @@ def _rmse(a: torch.Tensor, b: torch.Tensor):
     return rmse.mean()
 
 
+def compute_test_metrics(sar_output: torch.Tensor, opt_output: torch.Tensor):
+    return {
+        'ssim': structural_similarity_index_measure(sar_output, opt_output, data_range=(0.0, 1.0), kernel_size=5),
+        'rmse': _rmse(sar_output, opt_output),
+        'psnr': peak_signal_noise_ratio(opt_output, sar_output, (0.0, 1.0), dim=(1, 2, 3))
+    }
+
 class BaseModel(L.LightningModule):
 
     @classmethod
@@ -70,12 +77,7 @@ class BaseModel(L.LightningModule):
             'lr_scheduler': lr_scheduler
         }
 
-    def compute_test_metrics(self, sar_output: torch.Tensor, opt_output: torch.Tensor):
-        return {
-            'ssim': structural_similarity_index_measure(sar_output, opt_output, data_range=(0.0, 1.0), kernel_size=5),
-            'rmse': _rmse(sar_output, opt_output),
-            'psnr': peak_signal_noise_ratio(opt_output, sar_output, (0.0, 1.0), dim=(1, 2, 3))
-        }
+
 
     def forward(self, batch: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
         sar_input, opt_input = batch
@@ -85,7 +87,7 @@ class BaseModel(L.LightningModule):
 
     def test_step(self, batch: tuple[torch.Tensor, torch.Tensor], bi) :
         sar_output, opt_output = self.forward(batch)
-        metrics = self.compute_test_metrics(sar_output, opt_output)
+        metrics = compute_test_metrics(sar_output, opt_output)
 
         _ = {f'test/{n}': v for n, v in metrics.items()}
         metrics = _

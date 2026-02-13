@@ -1,18 +1,20 @@
-import torch
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+import torch
 from models.type2 import Type2Model
 
-torch.manual_seed(0)
 import torch.optim
 from models.type1 import Type1Model, Type1HRModel, Type1RGBModel
 from lightning import Trainer
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import *
-from pathlib import Path
+
 from data.image_folders_data_module import ImageFoldersDataModule
-import sys
 import argparse
 
+torch.manual_seed(0)
 torch.set_float32_matmul_precision('high')
 torch.backends.cudnn.allow_tf32=True
 

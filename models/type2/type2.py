@@ -22,6 +22,7 @@ class Type2Model(BaseModel):
 
         self.sar_inv_model = self._get_model(out_channels, sar_channels, False, activation=None)
         self.opt_inv_model = self._get_model(out_channels, opt_channels, False, activation=None)
+
         if sar_use_log_scale:
             self.log10 = Log10()
         else:
@@ -61,6 +62,15 @@ class Type2Model(BaseModel):
             'opt_rec_ssim': opt_rec_ssim.item()
         }
 
+    def preprocess_sar_rec_image(self, image: torch.Tensor) -> torch.Tensor:
+        if image.ndim == 4:
+            image = image[0]
+
+        if image.ndim == 3 and image.shape[0] > 1:
+            image = image[(0, 1, 0), ...]
+        image = self.limiter(image)
+        return image
+
     def _step(self, stage, batch: tuple[torch.Tensor, torch.Tensor], batch_idx):
         out = self.forward(batch)
         rec = self.forward_inv(out)
@@ -75,7 +85,7 @@ class Type2Model(BaseModel):
         sar_rec, opt_rec = rec
 
         self.log_dict(metrics, prog_bar=True)
-        if self.global_step % 1000 == 0 or (stage != 'train' and batch_idx == 1):
+        if self.global_step % 250 == 0 or (stage != 'train' and batch_idx == 1):
             self.save_images(stage, self.trainer.global_step,
                              {
                                  'sar_output': self.preprocess_opt_image(sar_output),
@@ -84,7 +94,7 @@ class Type2Model(BaseModel):
                                  'sar_input': self.preprocess_sar_image(sar_input),
                                  'opt_input': self.preprocess_opt_image(opt_input),
 
-                                 'sar_rec': self.preprocess_sar_image(sar_rec),
+                                 'sar_rec': self.preprocess_sar_rec_image(sar_rec),
                                  'opt_rec': self.preprocess_opt_image(opt_rec)
                              }
                              )
@@ -95,3 +105,14 @@ class Type2Model(BaseModel):
 
     def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor], bi):
         return self._step('val', batch, bi)
+
+    def test_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx):
+        sar_output, opt_output = self.forward(batch)
+        sar_output = self.limiter(sar_output)
+        opt_output = self.limiter(opt_output)
+        metrics = self.compute_test_metrics(sar_output, opt_output)
+
+        _ = {f'test/{n}': v for n, v in metrics.items()}
+        metrics = _
+
+        self.log_dict(metrics, prog_bar=True)

@@ -1,21 +1,25 @@
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+
 import argparse
 from multiprocessing.pool import ThreadPool
-from pathlib import Path
+
 import numpy as np
-from timm.models.metaformer import poolformer_m36
+
 
 from matching import DetectedPoints, compute_homography
 from dataclasses import dataclass, field, asdict
-
+from tqdm import tqdm
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('KEYPOINTS_DIR', type=Path)
-    parser.add_argument('OUTPUT_PATH', type=Path, optional=True)
+    parser.add_argument('--output-path', type=Path, required=False)
     parser.add_argument('--success-ace-threshold', type=float, default=40, help='ACE upper limit for successful matching')
     parser.add_argument('--mma-distance-threshold', type=float, default=3, help='Upper distance for MMA metric')
     parser.add_argument('--image-size', type=int, nargs=2, default=(256, 256))
-    parser.add_argument('--num-threads', type=int, default=8)
+    parser.add_argument('--threads', type=int, default=0)
     return parser.parse_args()
 
 LE_DISTANCE_THRESHOLDS = [1, 2, 3, 4, 5]
@@ -30,7 +34,7 @@ class MatchingStats:
     LE: list[float] = field(default_factory=list)
     CMR: list[float] = field(default_factory=list)
 
-FAILED_MATCHING_STATS = MatchingStats(np.inf, 0, np.inf, 0, [0 for _ in LE_DISTANCE_THRESHOLDS], [0 for _ in LE_DISTANCE_THRESHOLDS])
+FAILED_MATCHING_STATS = MatchingStats(np.nan, 0, np.nan, 0, [0 for _ in LE_DISTANCE_THRESHOLDS], [0 for _ in LE_DISTANCE_THRESHOLDS])
 
 def process_file(f: Path, args):
     try:
@@ -47,39 +51,40 @@ def process_file(f: Path, args):
         CMR = [detected_points.cmr(_) for _ in LE_DISTANCE_THRESHOLDS]
     )
 
-    homograpty = compute_homography(detected_points.points_a, detected_points.points_b)
-    if homograpty is None:
+    homography = compute_homography(detected_points.points_a, detected_points.points_b)
+    if homography is None:
         return result
 
-    ace = homograpty.ace(args.image_size)
+    ace = homography.ace(args.image_size)
     if ace <= args.success_ace_threshold:
-        result.ace = ace
-        result.MMA = homograpty.inliers_percent
+        result.ACE = ace
+        result.MMA = homography.inliers_percent
 
     return result
-
-
-
 
 
 def main():
     args = parse_args()
 
     def get_out_path():
-        if args.OUTPUT_PATH is not None:
-            return args.OUTPUT_PATH
-        return args.KEYPOINTS_DIR.parent / "matching_stats.txt"
+        if args.output_path is not None:
+            return args.output_path
+        return args.KEYPOINTS_DIR.parent / "matching_stats.csv"
 
     assert args.KEYPOINTS_DIR.is_dir()
     out_path = get_out_path()
-    assert not out_path.is_dir()
+    if out_path.is_dir():
+        out_path = out_path / "matching_stats.csv"
 
-    out_path.mkdir(parents=True, exist_ok=True)
+
+
+
     metrics = {m:[] for m in asdict(FAILED_MATCHING_STATS).keys()}
 
+    files = list(args.KEYPOINTS_DIR.glob('*.npy'))
+    with ThreadPool(args.threads or 1) as pool:
 
-    with ThreadPool(args.num_threads or 1) as pool:
-        for stats in pool.imap_unordered(lambda f: process_file(f, args), args.KEYPOINTS_DIR.glob('*.npy')):
+        for stats in tqdm(pool.imap_unordered(lambda f: process_file(f, args), files), total=len(files)):
             stats_dict = asdict(stats)
             for m in metrics:
                 metrics[m].append(stats_dict[m])
@@ -87,7 +92,7 @@ def main():
     metrics = {m: np.array(metrics[m]) for m in metrics}
     result = {}
 
-    result['SR'] = np.count_nonzero(metrics['ACE'] <= args.success_ace_threshold)
+    result['SR'] = np.count_nonzero(metrics['ACE'] <= args.success_ace_threshold)/len(files)
     result['ACE'] = np.nanmean(metrics['ACE'])
     result['MMA'] = np.nanmean(metrics['MMA'])
     result['pairs_count']=np.mean(metrics['pairs_count'])
@@ -98,17 +103,20 @@ def main():
     names = ['SR', 'ACE', 'MMA', 'pairs_count', 'point_error'] # fixed order of columns in CSV
 
     for d, le, cmr in zip(LE_DISTANCE_THRESHOLDS, le, cmr):
-        result[f'LE{d}'].append(le)
-        result[f'CMR{d}'].append(cmr)
+        result[f'LE{d}'] = le
+        result[f'CMR{d}'] = cmr
+
         names.extend([f'LE{d}', f'CMR{d}'])
 
-    with open('matching_stats.csv', 'w') as f:
-        f.write(','.join(names) + '\r\n')
-        values_row = ','.join(str(result[n] for n in names)) + '\r\n'
+    print("Writing results to ", out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(out_path, 'w') as f:
+        names_row = ','.join(names) + '\r\n'
+        values_row = ','.join(str(result[n]) for n in names) + '\r\n'
+        print(names_row+ values_row)
+        f.write(names_row)
         f.write(values_row)
-
-
-
 
 
 
